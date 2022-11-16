@@ -1,0 +1,214 @@
+---
+title: "Assignment 4"
+author: "Inshal Naqvi"
+ID: '11721690'
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+  pdf_document: default
+Date: 10/4/2021
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Question 1
+
+This problem will involve the nycflights13dataset(including tables flights, airlines,airports,planes andweather), which we saw in class. It is available in both R and Python, however R is recommended for at least the visualization portion of the question. You can get more information about this package on github at https://github.com/tidyverse/nycflights13 The  data  tables  can  be  found  in  the  data-raw  folder  of  the  above-mentioned github repository. Additionally,  the flights.csv file which  was  used  in  assignment  3  is  available  in  the Datasets module on Canvas. Start by installing and importing the dataset to your chosen platform. We will first  use  joins  to  search  and  manipulate  the  dataset,  then  we  will  produce  a  flightcountvisualization.
+
+
+```{r}
+library('dplyr')
+library('tidyverse')
+```
+
+
+
+```{r}
+
+library(nycflights13)
+library(tidyverse)
+
+data("airlines")
+data("airports")
+data("flights")
+data("planes")
+data("weather")
+```
+
+##Part a
+
+Filter the dataset(using a left join) to display the tail number, year, month, day,  hour,  origin,  and  humidity  for all  flights heading  to Tampa  International Airport(TPA) after 12p mon November 1, 2013.
+
+```{r}
+flights_to_tpa = left_join(flights, weather) %>% 
+  select(tailnum, year, month, day, hour, origin, humid, dest)%>%
+  filter(year == 2013 & month == 11 & day == 1 & hour >= 12 & dest == "TPA")
+
+flights_to_tpa
+```
+
+#Part b
+
+What is the difference between the following two joins?
+
+
+```{r}
+
+anti_join_1 = anti_join(flights, airports, by = c("dest" = "faa"))
+anti_join_2 = anti_join(airports, flights, by = c("faa" = "dest"))
+
+```
+
+According to the scenario of nycflights13, the first Anti_Join will show all those flights that have a destination to to those Airports which are not listed in the original Airports list where flights$dest = airports$faa.
+
+The second Anti_join in which the primary dataset is airports will show those airports and there names which are either either not operational and flights does not operate or there were no flights to those airports in 2013.
+
+#Part c
+
+Filter the table flights to only show flights with planes that have flown at least 100 flights. Hint: tailnum is used to identify planes.(suggested functions: R:semi_join(), count(), filter();
+
+```{r}
+#Filtering missing tail number
+planes_gte100 <- flights %>%
+  filter(!is.na(tailnum)) %>%
+  group_by(tailnum) %>%
+  count() %>%
+  filter(n >= 100)
+
+#Semi-join planes that have flown at 100 flights
+
+flights %>%
+  semi_join(planes_gte100, by = "tailnum")
+
+
+```
+
+#Part d
+
+What weather conditions make it more likely to see a delay? Briefly discuss any relations/patterns you found.
+
+```{r }
+flight_weather <-
+  flights %>%
+  inner_join(weather, by = c(
+    "origin" = "origin",
+    "year" = "year",
+    "month" = "month",
+    "day" = "day",
+    "hour" = "hour"
+  ))
+
+flight_weather %>%
+  group_by(precip) %>%
+  summarise(delay = mean(dep_delay, na.rm = TRUE)) %>%
+  ggplot(aes(x = precip, y = delay)) +
+  geom_line() + geom_point()
+
+flight_weather %>%
+  ungroup() %>%
+  mutate(visib_cat = cut_interval(visib, n = 10)) %>%
+  group_by(visib_cat) %>%
+  summarise(dep_delay = mean(dep_delay, na.rm = TRUE)) %>%
+  ggplot(aes(x = visib_cat, y = dep_delay)) +
+  geom_point()
+```
+We see a delay whenever there is precepatation unless its above 0.02 then the trend is not strong.
+
+There is a strong relationship between delays and visibility. If visibility is less than 2 miles delays are higher when also agrees intuitively.
+
+#Part e
+
+Produce  a  map that sizes each destination  airport  by  the number  of incoming  flights.You may use  a  continuous  scale for  the size. Here  is  a  code snippet  to  draw  a  map  of  all  flight  destinations,  which  you  can  use  as  a  starting point. You may need to install the maps packages if you have not already. Adjust the title, axis labels and aesthetics to make this visualization as clear as possible.
+
+
+
+```{r }
+library(tidyverse)
+library(sf)
+library(here)
+library(ggplot2)
+
+
+airports_1e = flights%>%
+  group_by(dest) %>%
+  # arrival delay NA's are cancelled flights
+  summarise(delay = mean(arr_delay, na.rm = TRUE)) %>%
+  inner_join(airports, by = c(dest = "faa"))
+
+airports_1e%>%
+  ggplot(aes(lon, lat, colour = delay)) +
+  borders("state") +
+  geom_point() +
+  coord_quickmap()
+  
+```
+
+#Problem 2
+Tableau screenshot are submitted.
+```{r}
+covid19 = read.csv("covid19_vaccinations_USA.csv", sep=",", header = TRUE)
+#head(covid19)
+
+janssen = covid19[c(1:2)]
+#head(janssen)
+
+moderna = covid19[c(1,3)]
+#head(moderna)
+
+pfizer = covid19[c(1,4)]
+#head(pfizer)
+
+```
+
+## Question3
+
+```{r}
+library("tm")
+library("SnowballC")
+library("wordcloud")
+library("RColorBrewer")
+
+text_q3 = read.delim("getting_started_with_ml.txt")
+data_q3 = Corpus(VectorSource(text_q3))
+
+word_cloud = content_transformer(function (x , pattern ) gsub(pattern, " ", x))
+
+data_q3 = tm_map(data_q3, word_cloud, "/")
+data_q3 = tm_map(data_q3, word_cloud, "@")
+data_q3 = tm_map(data_q3, word_cloud, "\\|")
+data_q3 = tm_map(data_q3, word_cloud, "the")
+data_q3 = tm_map(data_q3, word_cloud, "you")
+
+
+text_mine = TermDocumentMatrix(data_q3)
+m = as.matrix(text_mine)
+v = sort(rowSums(m),decreasing=TRUE)
+d = data.frame(word = names(v),freq=v)
+head(d, 10)
+
+
+wordcloud(words = d$word, freq = d$freq, min.freq = 1,
+          max.words=200, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+#title(main = "Word Cloud - Introduction to ML", font.main = 1, cex.main = 1)
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
